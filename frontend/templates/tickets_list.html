@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tickets</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link href="/static/app-theme.css" rel="stylesheet">
+  <style>
+    .hero {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 1.25rem;
+      padding: 1rem;
+      box-shadow: 0 12px 26px rgba(20, 17, 12, 0.08);
+      animation: rise 320ms ease-out;
+    }
+
+    .hero-title {
+      font-family: "Space Grotesk", sans-serif;
+      font-weight: 700;
+      margin: 0;
+      font-size: 1.2rem;
+    }
+
+    .hero-subtitle {
+      margin: 0.25rem 0 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .quick-links {
+      display: flex;
+      gap: 0.6rem;
+      margin-top: 0.85rem;
+      flex-wrap: wrap;
+    }
+
+    .quick-links .btn {
+      border-radius: 999px;
+      font-weight: 700;
+      border-width: 1px;
+    }
+
+    .filters {
+      margin-top: 1rem;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 1rem;
+      padding: 0.85rem;
+      display: grid;
+      gap: 0.7rem;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      animation: rise 420ms ease-out;
+    }
+
+    .tickets-block {
+      margin-top: 1rem;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 1rem;
+      padding: 0.35rem;
+      animation: rise 540ms ease-out;
+    }
+
+    .table {
+      margin-bottom: 0;
+      --bs-table-bg: transparent;
+    }
+
+    .table th {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      border-bottom-color: var(--line);
+    }
+
+    .table td {
+      vertical-align: middle;
+      border-bottom-color: var(--line);
+    }
+
+    .ticket-cards {
+      display: none;
+      gap: 0.75rem;
+    }
+
+    .ticket-card {
+      border: 1px solid var(--line);
+      border-radius: 0.95rem;
+      padding: 0.85rem;
+      background: #fff;
+      box-shadow: 0 8px 18px rgba(30, 25, 18, 0.06);
+    }
+
+    .ticket-card h3 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 700;
+      font-family: "Space Grotesk", sans-serif;
+    }
+
+    .meta-row {
+      margin-top: 0.55rem;
+      display: flex;
+      gap: 0.45rem;
+      flex-wrap: wrap;
+    }
+
+    .meta-label {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .fab {
+      position: fixed;
+      right: 1rem;
+      bottom: 1rem;
+      width: 3.4rem;
+      height: 3.4rem;
+      border-radius: 999px;
+      border: none;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      line-height: 1;
+      text-decoration: none;
+      color: #fff;
+      background: linear-gradient(145deg, var(--accent), var(--accent-strong));
+      box-shadow: 0 14px 22px rgba(199, 77, 24, 0.34);
+      z-index: 30;
+    }
+
+    @media (max-width: 767.98px) {
+      .filters {
+        grid-template-columns: 1fr;
+      }
+
+      .table-responsive {
+        display: none;
+      }
+
+      .ticket-cards {
+        display: grid;
+      }
+
+      .quick-links .btn-primary {
+        display: none;
+      }
+
+      .fab {
+        display: inline-flex;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <h1 class="brand-title">Ticket board</h1>
+        <p class="brand-note">Review, sort, and resolve incidents without losing urgency order.</p>
+      </div>
+      <button class="btn btn-outline-dark btn-logout" id="logout-btn" type="button">Logout</button>
+    </header>
+
+    <section class="hero">
+      <h2 class="hero-title">Tickets</h2>
+      <p class="hero-subtitle">Prioritize by urgency and keep response flow visible.</p>
+      <div class="quick-links">
+        <a class="btn btn-outline-secondary" href="/categories">Categories</a>
+        <a class="btn btn-outline-secondary" href="/tickets/trash">Trash</a>
+        <a class="btn btn-primary" href="/tickets/new">New Ticket</a>
+      </div>
+    </section>
+
+    <section class="filters">
+      <div>
+        <select class="form-select" id="sort">
+          <option value="urgency">Urgency</option>
+          <option value="created_at">Created At</option>
+          <option value="title">Title</option>
+        </select>
+      </div>
+      <div>
+        <select class="form-select" id="order">
+          <option value="desc">Desc</option>
+          <option value="asc">Asc</option>
+        </select>
+      </div>
+      <div>
+        <select class="form-select" id="category-filter">
+          <option value="">All categories</option>
+        </select>
+      </div>
+      <div>
+        <select class="form-select" id="status-filter">
+          <option value="open,in_progress">Open + In progress</option>
+          <option value="solved">Solved</option>
+        </select>
+      </div>
+      <div class="d-grid">
+        <button class="btn btn-outline-primary" id="refresh">Apply</button>
+      </div>
+    </section>
+
+    <section class="tickets-block">
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Urgency</th>
+              <th>Status</th>
+              <th>Owner</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="ticket-body"></tbody>
+        </table>
+      </div>
+      <div class="ticket-cards" id="ticket-cards"></div>
+    </section>
+
+    <p class="inline-error" id="error"></p>
+  </main>
+
+  <a class="fab" href="/tickets/new" aria-label="Create new ticket">+</a>
+
+  <script src="/static/app-common.js"></script>
+  <script>
+    const token = getAccessToken();
+    const errorNode = document.getElementById("error");
+
+    function shortId(value) {
+      if (!value || typeof value !== "string") {
+        return "-";
+      }
+      return value.slice(0, 8);
+    }
+
+    function buildStatusClass(status) {
+      return `status-${status}`;
+    }
+
+    function setError(message) {
+      errorNode.textContent = message || "";
+    }
+
+    async function loadTickets() {
+      const sort = document.getElementById("sort").value;
+      const order = document.getElementById("order").value;
+      const categoryId = document.getElementById("category-filter").value;
+      const status = document.getElementById("status-filter").value;
+
+      let url = `/api/tickets?sort=${sort}&order=${order}`;
+      if (categoryId) {
+        url += `&category_id=${encodeURIComponent(categoryId)}`;
+      }
+      if (status) {
+        url += `&status=${encodeURIComponent(status)}`;
+      }
+
+      const response = await fetch(url, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      if (redirectIfUnauthorized(response)) {
+        return;
+      }
+
+      if (!response.ok) {
+        setError("Could not load tickets");
+        return;
+      }
+
+      const tickets = await response.json();
+      const body = document.getElementById("ticket-body");
+      const cardGrid = document.getElementById("ticket-cards");
+      body.innerHTML = "";
+      cardGrid.innerHTML = "";
+
+      tickets.forEach((ticket) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${ticket.title}</td>
+          <td><span class="chip">P${ticket.urgency}</span></td>
+          <td><span class="chip ${buildStatusClass(ticket.status)}">${ticket.status}</span></td>
+          <td>${ticket.owner_username || shortId(ticket.owner_user_id)}</td>
+          <td><a class="btn btn-sm btn-outline-dark" href="/tickets/${ticket.id}">View</a></td>
+        `;
+        body.appendChild(tr);
+
+        const card = document.createElement("article");
+        card.className = "ticket-card";
+        card.innerHTML = `
+          <h3>${ticket.title}</h3>
+          <div class="meta-row">
+            <span class="chip">P${ticket.urgency}</span>
+            <span class="chip ${buildStatusClass(ticket.status)}">${ticket.status}</span>
+          </div>
+          <p class="meta-label mb-2 mt-2">Owner: ${ticket.owner_username || shortId(ticket.owner_user_id)}</p>
+          <a class="btn btn-sm btn-outline-dark" href="/tickets/${ticket.id}">Open detail</a>
+        `;
+        cardGrid.appendChild(card);
+      });
+    }
+
+    document.getElementById("refresh").addEventListener("click", (event) => {
+      event.preventDefault();
+      setError("");
+      loadTickets();
+    });
+
+    async function loadCategories() {
+      const response = await fetch("/api/categories", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      const list = await response.json();
+      const select = document.getElementById("category-filter");
+      list.forEach((item) => {
+        const option = document.createElement("option");
+        option.value = item.id;
+        option.textContent = item.name;
+        select.appendChild(option);
+      });
+    }
+
+    attachLogout("logout-btn");
+    loadCategories();
+    loadTickets();
+  </script>
+</body>
+</html>

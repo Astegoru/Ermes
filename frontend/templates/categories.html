@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Categories</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link href="/static/app-theme.css" rel="stylesheet">
+  <style>
+    .stack {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .category-list {
+      display: grid;
+      gap: 0.45rem;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .category-item {
+      border: 1px solid var(--line);
+      border-radius: 0.8rem;
+      padding: 0.7rem 0.85rem;
+      background: #fff;
+      font-size: 0.92rem;
+      display: flex;
+      justify-content: space-between;
+      gap: 0.55rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .category-id {
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <h1 class="brand-title">Categories</h1>
+        <p class="brand-note">Maintain active categories and merge duplicates safely.</p>
+      </div>
+      <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary" href="/">Back</a>
+        <button class="btn btn-outline-dark btn-logout" id="logout-btn" type="button">Logout</button>
+      </div>
+    </header>
+
+    <section class="stack">
+      <form id="create-category" class="surface-card row g-2">
+        <div class="col-12 col-md-4">
+          <label class="form-label" for="name">Name</label>
+          <input class="form-control" id="name" placeholder="Name" required>
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label" for="description">Description</label>
+          <input class="form-control" id="description" placeholder="Description">
+        </div>
+        <div class="col-12 col-md-2 d-grid align-self-end">
+          <button class="btn btn-primary" type="submit">Create</button>
+        </div>
+      </form>
+
+      <section class="surface-card">
+        <h2 class="h6 mb-3">Active Categories</h2>
+        <ul class="category-list" id="categories-list"></ul>
+      </section>
+
+      <form id="merge-form" class="surface-card row g-2">
+        <h2 class="h6 mb-2">Merge Categories</h2>
+        <div class="col-12 col-md-5">
+          <label class="form-label" for="source-ids">Source IDs comma-separated</label>
+          <input class="form-control" id="source-ids" placeholder="source-id-1,source-id-2" required>
+        </div>
+        <div class="col-12 col-md-5">
+          <label class="form-label" for="target-id">Target ID</label>
+          <input class="form-control" id="target-id" placeholder="target-id" required>
+        </div>
+        <div class="col-12 col-md-2 d-grid align-self-end">
+          <button class="btn btn-outline-dark" type="submit">Merge</button>
+        </div>
+      </form>
+    </section>
+
+    <p class="inline-error" id="error"></p>
+  </main>
+
+  <script src="/static/app-common.js"></script>
+  <script>
+    const token = getAccessToken();
+    const errorNode = document.getElementById("error");
+
+    function setError(message) {
+      errorNode.textContent = message || "";
+    }
+
+    async function loadCategories() {
+      const response = await fetch("/api/categories", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+
+      if (redirectIfUnauthorized(response)) {
+        return;
+      }
+
+      if (!response.ok) {
+        setError("Could not load categories");
+        return;
+      }
+
+      const list = await response.json();
+      const node = document.getElementById("categories-list");
+      node.innerHTML = "";
+
+      list.forEach((item) => {
+        const li = document.createElement("li");
+        li.className = "category-item";
+        li.innerHTML = `
+          <span>${item.name}</span>
+          <span class="category-id">${item.id}</span>
+        `;
+        node.appendChild(li);
+      });
+    }
+
+    document.getElementById("create-category").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      setError("");
+
+      const response = await fetch("/api/categories", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: document.getElementById("name").value,
+          description: document.getElementById("description").value
+        })
+      });
+
+      if (redirectIfUnauthorized(response)) {
+        return;
+      }
+
+      if (!response.ok) {
+        const payload = await response.json();
+        setError(payload.error || "Could not create category");
+        return;
+      }
+
+      document.getElementById("name").value = "";
+      document.getElementById("description").value = "";
+      loadCategories();
+    });
+
+    document.getElementById("merge-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      setError("");
+
+      const sourceIds = document.getElementById("source-ids").value
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean);
+      const targetId = document.getElementById("target-id").value.trim();
+
+      const response = await fetch("/api/categories/merge", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ source_ids: sourceIds, target_id: targetId })
+      });
+
+      if (redirectIfUnauthorized(response)) {
+        return;
+      }
+
+      if (!response.ok) {
+        const payload = await response.json();
+        setError(payload.error || "Merge failed");
+        return;
+      }
+
+      loadCategories();
+    });
+
+    attachLogout("logout-btn");
+    loadCategories();
+  </script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ermes Login</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link href="/static/app-theme.css" rel="stylesheet">
+  <style>
+    .auth-shell {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 1rem;
+    }
+
+    .auth-card {
+      width: min(420px, 100%);
+    }
+  </style>
+</head>
+<body>
+  <main class="auth-shell">
+    <section class="surface-card auth-card">
+      <h1 class="brand-title">Ermes Login</h1>
+      <p class="brand-note">Authenticate with FACTS credentials.</p>
+      <form id="login-form" class="mt-3">
+        <div class="mb-3">
+          <label class="form-label" for="username">Username</label>
+          <input class="form-control" id="username" name="username" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="password">Password</label>
+          <input class="form-control" id="password" name="password" type="password" required>
+        </div>
+        <button class="btn btn-primary w-100" type="submit">Sign in</button>
+      </form>
+      <p class="inline-error" id="error"></p>
+    </section>
+  </main>
+
+  <script>
+    document.getElementById("login-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+      const errorNode = document.getElementById("error");
+      errorNode.textContent = "";
+
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+
+      if (!response.ok) {
+        const payload = await response.json();
+        errorNode.textContent = payload.error || "Login failed";
+        return;
+      }
+
+      const payload = await response.json();
+      localStorage.setItem("accessToken", payload.access_token);
+      localStorage.setItem("refreshToken", payload.refresh_token);
+      window.location.href = "/";
+    });
+  </script>
+</body>
+</html>
