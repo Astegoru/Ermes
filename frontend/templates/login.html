@@ -17,6 +17,33 @@
       padding: 1rem;
     }
 
+    .auth-layout {
+      width: min(980px, 100%);
+      display: grid;
+      gap: 1.2rem;
+      justify-items: center;
+      align-content: start;
+      padding-top: 1rem;
+    }
+
+    .hero-title {
+      margin: 0;
+      text-align: center;
+      font-family: "Space Grotesk", sans-serif;
+      font-weight: 800;
+      letter-spacing: 0.01em;
+      line-height: 0.95;
+      font-size: clamp(2.4rem, 8vw, 5.8rem);
+      color: #17130f;
+      text-wrap: balance;
+    }
+
+    .hero-title .underlined {
+      text-decoration: underline;
+      text-decoration-thickness: 0.1em;
+      text-underline-offset: 0.12em;
+    }
+
     .auth-card {
       width: min(420px, 100%);
     }
@@ -24,22 +51,25 @@
 </head>
 <body>
   <main class="auth-shell">
-    <section class="surface-card auth-card">
-      <h1 class="brand-title">Ermes Login</h1>
-      <p class="brand-note">Authenticate with FACTS credentials.</p>
-      <form id="login-form" class="mt-3">
-        <div class="mb-3">
-          <label class="form-label" for="username">Username</label>
-          <input class="form-control" id="username" name="username" required>
-        </div>
-        <div class="mb-3">
-          <label class="form-label" for="password">Password</label>
-          <input class="form-control" id="password" name="password" type="password" required>
-        </div>
-        <button class="btn btn-primary w-100" type="submit">Sign in</button>
-      </form>
-      <p class="inline-error" id="error"></p>
-    </section>
+    <div class="auth-layout">
+      <h1 class="hero-title">Ticketing for Moncho. <span class="underlined">We Ask</span> he do</h1>
+      <section class="surface-card auth-card">
+        <h2 class="brand-title">Ermes Login</h2>
+        <p class="brand-note">Authenticate with FACTS credentials.</p>
+        <form id="login-form" class="mt-3">
+          <div class="mb-3">
+            <label class="form-label" for="username">Username</label>
+            <input class="form-control" id="username" name="username" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="password">Password</label>
+            <input class="form-control" id="password" name="password" type="password" required>
+          </div>
+          <button class="btn btn-primary w-100" type="submit">Sign in</button>
+        </form>
+        <p class="inline-error" id="error"></p>
+      </section>
+    </div>
   </main>
 
   <script>
