@@ -40,6 +40,14 @@
       font-weight: 800;
     }
 
+    #category-toggle-list {
+      max-height: 180px;
+      overflow-y: auto;
+      padding-right: 2px;
+      /* fade hint at bottom when scrollable */
+      mask-image: linear-gradient(to bottom, black calc(100% - 28px), transparent 100%);
+    }
+
     .attach-trigger {
       display: inline-flex;
       align-items: center;
@@ -282,7 +290,7 @@
         const safeName = escapeHtml(item.name || "Unnamed");
         const safeId = escapeHtml(item.id);
         const id = `cat-${index}`;
-        const shouldSelect = selectedId ? selectedId === item.id : index === 0;
+        const shouldSelect = selectedId ? selectedId === item.id : false;
 
         target.insertAdjacentHTML(
           "beforeend",

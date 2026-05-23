@@ -36,9 +36,40 @@
       flex-wrap: wrap;
     }
 
+    .category-id-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
     .category-id {
       color: var(--muted);
       font-size: 0.78rem;
+      font-family: monospace;
+    }
+
+    .copy-btn {
+      background: none;
+      border: none;
+      padding: 0.15rem 0.3rem;
+      border-radius: 0.4rem;
+      cursor: pointer;
+      color: var(--muted);
+      line-height: 1;
+      transition: color 0.15s, background 0.15s;
+    }
+
+    .copy-btn:hover {
+      color: var(--accent);
+      background: var(--chip);
+    }
+
+    .copy-btn.copied {
+      color: var(--ok);
+    }
+
+    .merge-select {
+      height: auto;
     }
   </style>
 </head>
@@ -77,13 +108,18 @@
 
       <form id="merge-form" class="surface-card row g-2">
         <h2 class="h6 mb-2">Merge Categories</h2>
+        <p class="text-muted" style="font-size: 0.88rem; margin-bottom: 0.5rem;">
+          Select one or more source categories to merge into a target. Sources will be deactivated and their tickets reassigned.
+        </p>
         <div class="col-12 col-md-5">
-          <label class="form-label" for="source-ids">Source IDs comma-separated</label>
-          <input class="form-control" id="source-ids" placeholder="source-id-1,source-id-2" required>
+          <label class="form-label" for="source-select">Sources <span class="text-muted fw-normal">(hold Ctrl / Cmd to pick multiple)</span></label>
+          <select class="form-select merge-select" id="source-select" multiple size="4" required></select>
         </div>
         <div class="col-12 col-md-5">
-          <label class="form-label" for="target-id">Target ID</label>
-          <input class="form-control" id="target-id" placeholder="target-id" required>
+          <label class="form-label" for="target-select">Merge into</label>
+          <select class="form-select" id="target-select" required>
+            <option value="">Select target category</option>
+          </select>
         </div>
         <div class="col-12 col-md-2 d-grid align-self-end">
           <button class="btn btn-outline-dark" type="submit">Merge</button>
@@ -101,6 +137,26 @@
 
     function setError(message) {
       errorNode.textContent = message || "";
+    }
+
+    function populateMergeSelects(list) {
+      const sourceSelect = document.getElementById("source-select");
+      const targetSelect = document.getElementById("target-select");
+
+      sourceSelect.innerHTML = "";
+      targetSelect.innerHTML = '<option value="">Select target category</option>';
+
+      list.forEach((item) => {
+        const srcOpt = document.createElement("option");
+        srcOpt.value = item.id;
+        srcOpt.textContent = item.name;
+        sourceSelect.appendChild(srcOpt);
+
+        const tgtOpt = document.createElement("option");
+        tgtOpt.value = item.id;
+        tgtOpt.textContent = item.name;
+        targetSelect.appendChild(tgtOpt);
+      });
     }
 
     async function loadCategories() {
@@ -124,12 +180,41 @@
       list.forEach((item) => {
         const li = document.createElement("li");
         li.className = "category-item";
-        li.innerHTML = `
-          <span>${item.name}</span>
-          <span class="category-id">${item.id}</span>
-        `;
+
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = item.name;
+
+        const idWrap = document.createElement("span");
+        idWrap.className = "category-id-wrap";
+
+        const idSpan = document.createElement("span");
+        idSpan.className = "category-id";
+        idSpan.textContent = item.id;
+
+        const copyBtn = document.createElement("button");
+        copyBtn.type = "button";
+        copyBtn.className = "copy-btn";
+        copyBtn.title = "Copy ID";
+        copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+        copyBtn.addEventListener("click", () => {
+          navigator.clipboard.writeText(item.id).then(() => {
+            copyBtn.classList.add("copied");
+            copyBtn.title = "Copied!";
+            setTimeout(() => {
+              copyBtn.classList.remove("copied");
+              copyBtn.title = "Copy ID";
+            }, 1800);
+          });
+        });
+
+        idWrap.appendChild(idSpan);
+        idWrap.appendChild(copyBtn);
+        li.appendChild(nameSpan);
+        li.appendChild(idWrap);
         node.appendChild(li);
       });
+
+      populateMergeSelects(list);
     }
 
     document.getElementById("create-category").addEventListener("submit", async (event) => {
@@ -167,11 +252,24 @@
       event.preventDefault();
       setError("");
 
-      const sourceIds = document.getElementById("source-ids").value
-        .split(",")
-        .map((value) => value.trim())
-        .filter(Boolean);
-      const targetId = document.getElementById("target-id").value.trim();
+      const sourceSelect = document.getElementById("source-select");
+      const sourceIds = Array.from(sourceSelect.selectedOptions).map((opt) => opt.value);
+      const targetId = document.getElementById("target-select").value;
+
+      if (!sourceIds.length) {
+        setError("Select at least one source category");
+        return;
+      }
+
+      if (!targetId) {
+        setError("Select a target category");
+        return;
+      }
+
+      if (sourceIds.includes(targetId)) {
+        setError("Target cannot be one of the source categories");
+        return;
+      }
 
       const response = await fetch("/api/categories/merge", {
         method: "POST",

@@ -53,8 +53,18 @@
       padding: 0.85rem;
       display: grid;
       gap: 0.7rem;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       animation: rise 420ms ease-out;
+    }
+
+    .filter-field label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      margin-bottom: 0.3rem;
     }
 
     .tickets-block {
@@ -64,6 +74,13 @@
       border-radius: 1rem;
       padding: 0.35rem;
       animation: rise 540ms ease-out;
+    }
+
+    .tickets-count {
+      font-size: 0.8rem;
+      color: var(--muted);
+      padding: 0.5rem 0.75rem 0.1rem;
+      font-weight: 600;
     }
 
     .table {
@@ -116,6 +133,30 @@
       color: var(--muted);
     }
 
+    .empty-state {
+      text-align: center;
+      padding: 2.5rem 1rem;
+      color: var(--muted);
+    }
+
+    .empty-state p {
+      margin: 0.4rem 0 0;
+      font-size: 0.9rem;
+    }
+
+    .empty-state .reset-link {
+      display: inline-block;
+      margin-top: 0.75rem;
+      font-size: 0.88rem;
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 700;
+    }
+
+    .empty-state .reset-link:hover {
+      text-decoration: underline;
+    }
+
     .fab {
       position: fixed;
       right: 1rem;
@@ -138,7 +179,7 @@
 
     @media (max-width: 767.98px) {
       .filters {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr 1fr;
       }
 
       .table-responsive {
@@ -180,36 +221,38 @@
     </section>
 
     <section class="filters">
-      <div>
+      <div class="filter-field">
+        <label for="sort">Sort by</label>
         <select class="form-select" id="sort">
           <option value="urgency">Urgency</option>
           <option value="created_at">Created At</option>
           <option value="title">Title</option>
         </select>
       </div>
-      <div>
+      <div class="filter-field">
+        <label for="order">Order</label>
         <select class="form-select" id="order">
-          <option value="desc">Desc</option>
-          <option value="asc">Asc</option>
+          <option value="desc">Descending</option>
+          <option value="asc">Ascending</option>
         </select>
       </div>
-      <div>
+      <div class="filter-field">
+        <label for="category-filter">Category</label>
         <select class="form-select" id="category-filter">
           <option value="">All categories</option>
         </select>
       </div>
-      <div>
+      <div class="filter-field">
+        <label for="status-filter">Status</label>
         <select class="form-select" id="status-filter">
           <option value="open,in_progress">Open + In progress</option>
           <option value="solved">Solved</option>
         </select>
       </div>
-      <div class="d-grid">
-        <button class="btn btn-outline-primary" id="refresh">Apply</button>
-      </div>
     </section>
 
     <section class="tickets-block">
+      <p class="tickets-count" id="tickets-count"></p>
       <div class="table-responsive">
         <table class="table">
           <thead>
@@ -217,6 +260,7 @@
               <th>Title</th>
               <th>Urgency</th>
               <th>Status</th>
+              <th>Category</th>
               <th>Owner</th>
               <th></th>
             </tr>
@@ -225,6 +269,11 @@
         </table>
       </div>
       <div class="ticket-cards" id="ticket-cards"></div>
+      <div class="empty-state d-none" id="empty-state">
+        <strong>No tickets found</strong>
+        <p>No tickets match the current filters.</p>
+        <a class="reset-link" id="reset-filters" href="#">Reset filters</a>
+      </div>
     </section>
 
     <p class="inline-error" id="error"></p>
@@ -284,8 +333,20 @@
       const tickets = await response.json();
       const body = document.getElementById("ticket-body");
       const cardGrid = document.getElementById("ticket-cards");
+      const countNode = document.getElementById("tickets-count");
+      const emptyState = document.getElementById("empty-state");
+
       body.innerHTML = "";
       cardGrid.innerHTML = "";
+
+      if (!tickets.length) {
+        countNode.textContent = "";
+        emptyState.classList.remove("d-none");
+        return;
+      }
+
+      emptyState.classList.add("d-none");
+      countNode.textContent = `${tickets.length} ticket${tickets.length === 1 ? "" : "s"}`;
 
       tickets.forEach((ticket) => {
         const tr = document.createElement("tr");
@@ -293,6 +354,7 @@
           <td>${ticket.title}</td>
           <td><span class="chip">P${ticket.urgency}</span></td>
           <td><span class="chip ${buildStatusClass(ticket.status)}">${ticket.status}</span></td>
+          <td>${ticket.category_name || "<span class='text-muted'>—</span>"}</td>
           <td>${ticket.owner_username || shortId(ticket.owner_user_id)}</td>
           <td><a class="btn btn-sm btn-outline-dark" href="/tickets/${ticket.id}">View</a></td>
         `;
@@ -306,17 +368,33 @@
             <span class="chip">P${ticket.urgency}</span>
             <span class="chip ${buildStatusClass(ticket.status)}">${ticket.status}</span>
           </div>
-          <p class="meta-label mb-2 mt-2">Owner: ${ticket.owner_username || shortId(ticket.owner_user_id)}</p>
+          <p class="meta-label mb-1 mt-2">${ticket.category_name || ""}</p>
+          <p class="meta-label mb-2">Owner: ${ticket.owner_username || shortId(ticket.owner_user_id)}</p>
           <a class="btn btn-sm btn-outline-dark" href="/tickets/${ticket.id}">Open detail</a>
         `;
         cardGrid.appendChild(card);
       });
     }
 
-    document.getElementById("refresh").addEventListener("click", (event) => {
-      event.preventDefault();
+    function resetFilters() {
+      document.getElementById("sort").value = "urgency";
+      document.getElementById("order").value = "desc";
+      document.getElementById("category-filter").value = "";
+      document.getElementById("status-filter").value = "open,in_progress";
       setError("");
       loadTickets();
+    }
+
+    ["sort", "order", "category-filter", "status-filter"].forEach((id) => {
+      document.getElementById(id).addEventListener("change", () => {
+        setError("");
+        loadTickets();
+      });
+    });
+
+    document.getElementById("reset-filters").addEventListener("click", (event) => {
+      event.preventDefault();
+      resetFilters();
     });
 
     async function loadCategories() {
