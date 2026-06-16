@@ -8,7 +8,7 @@ from backend.auth.routes import bp as auth_bp
 from backend.categories.routes import bp as categories_bp
 from backend.config import load_settings
 from backend.db.repositories import Repositories
-from backend.files.routes import bp as files_bp
+from backend.files_routes import bp as files_bp
 from backend.tickets.routes import bp as tickets_bp
 
 
