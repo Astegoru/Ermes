@@ -1,5 +1,13 @@
 {
   "version": 2,
+  "functions": {
+    "api/index.py": {
+      "includeFiles": [
+        "frontend/templates/**",
+        "backend/static/**"
+      ]
+    }
+  },
   "builds": [
     {
       "src": "api/index.py",
