@@ -1,6 +1,7 @@
 from flask import Blueprint, current_app, g, jsonify, request
 
 from backend.auth.middleware import auth_required
+from backend.admin.service import can_manage_categories
 
 bp = Blueprint("categories", __name__, url_prefix="/api/categories")
 
@@ -14,6 +15,9 @@ def create_category():
         return jsonify({"error": "name is required"}), 400
 
     repo = current_app.extensions["repo"]
+    if not can_manage_categories(repo, g.current_user["id"]):
+        return jsonify({"error": "Only Moneda users can create categories"}), 403
+
     created = repo.create_category(
         {
             "name": name,
@@ -43,6 +47,9 @@ def update_category(category_id: str):
         return jsonify({"error": "No valid fields to update"}), 400
 
     repo = current_app.extensions["repo"]
+    if not can_manage_categories(repo, g.current_user["id"]):
+        return jsonify({"error": "Only Moneda users can update categories"}), 403
+
     updated = repo.update_category(category_id, updates)
     return jsonify(updated), 200
 
@@ -58,5 +65,8 @@ def merge_categories():
         return jsonify({"error": "source_ids and target_id are required"}), 400
 
     repo = current_app.extensions["repo"]
+    if not can_manage_categories(repo, g.current_user["id"]):
+        return jsonify({"error": "Only Moneda users can merge categories"}), 403
+
     merged = repo.merge_categories(source_ids=source_ids, target_id=target_id, actor_user_id=g.current_user["id"])
     return jsonify(merged), 200

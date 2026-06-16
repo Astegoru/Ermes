@@ -19,6 +19,7 @@
       </div>
       <div class="d-flex gap-2">
         <a class="btn btn-outline-secondary" href="/">Back</a>
+        <a class="btn btn-outline-primary" href="/admin/users">Manage Users</a>
         <button class="btn btn-outline-dark btn-logout" id="logout-btn" type="button">Logout</button>
       </div>
     </header>
@@ -34,6 +35,27 @@
     </form>
 
     <div class="surface-card" id="current">Current superuser: loading...</div>
+
+    <section class="surface-card mt-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h2 class="brand-title" style="font-size: 1rem; margin: 0;">User profiling</h2>
+        <button class="btn btn-sm btn-outline-primary" id="refresh-users" type="button">Refresh</button>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Role</th>
+              <th>Last login</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="users-body"></tbody>
+        </table>
+      </div>
+    </section>
+
     <p class="inline-error" id="error"></p>
   </main>
 
@@ -44,6 +66,15 @@
 
     function setError(message) {
       errorNode.textContent = message || "";
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#39;");
     }
 
     async function loadCurrent() {
@@ -57,6 +88,71 @@
 
       const payload = await response.json();
       currentNode.textContent = `Current superuser: ${payload.value || "not assigned"}`;
+    }
+
+    async function profileUser(userId, role) {
+      const response = await fetch(`/api/admin/users/${userId}/profile`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role })
+      });
+
+      if (!response.ok) {
+        const payload = await response.json();
+        throw new Error(payload.error || "Could not update role");
+      }
+    }
+
+    async function loadUsers() {
+      const response = await fetch("/api/admin/users");
+      if (response.status === 403) {
+        setError("Sign in as admin first.");
+        return;
+      }
+
+      if (!response.ok) {
+        setError("Could not load users");
+        return;
+      }
+
+      const users = await response.json();
+      const body = document.getElementById("users-body");
+      body.innerHTML = "";
+
+      users.forEach((user) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${escapeHtml(user.external_username || user.id)}</td>
+          <td>
+            <select class="form-select form-select-sm" data-role-user="${escapeHtml(user.id)}">
+              <option value="outsider" ${user.role === "outsider" ? "selected" : ""}>Outsider</option>
+              <option value="solver" ${user.role === "solver" ? "selected" : ""}>Solver</option>
+              <option value="moneda" ${user.role === "moneda" ? "selected" : ""}>Moneda</option>
+            </select>
+          </td>
+          <td>${escapeHtml(user.last_login_at || "-")}</td>
+          <td><button class="btn btn-sm btn-outline-dark" type="button" data-save-user="${escapeHtml(user.id)}">Save</button></td>
+        `;
+        body.appendChild(tr);
+      });
+
+      body.querySelectorAll("[data-save-user]").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const userId = button.getAttribute("data-save-user");
+          const select = body.querySelector(`[data-role-user="${userId}"]`);
+          if (!select) {
+            return;
+          }
+
+          try {
+            setError("");
+            await profileUser(userId, select.value);
+            await loadUsers();
+          } catch (error) {
+            setError(error.message || "Could not update role");
+          }
+        });
+      });
     }
 
     document.getElementById("assign-form").addEventListener("submit", async (event) => {
@@ -78,8 +174,14 @@
       loadCurrent();
     });
 
+    document.getElementById("refresh-users").addEventListener("click", () => {
+      setError("");
+      loadUsers();
+    });
+
     attachLogout("logout-btn", "/admin/login");
     loadCurrent();
+    loadUsers();
   </script>
 </body>
 </html>

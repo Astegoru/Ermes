@@ -55,11 +55,54 @@ create table if not exists app_meta (
     updated_at timestamptz not null default now()
 );
 
+create table if not exists user_profiles (
+    user_id uuid primary key references users(id) on delete cascade,
+    role text not null default 'outsider',
+    profiled_by text,
+    updated_at timestamptz not null default now(),
+    check (role in ('moneda', 'solver', 'outsider'))
+);
+
+create table if not exists ticket_comments (
+    id uuid primary key default gen_random_uuid(),
+    ticket_id uuid not null references tickets(id) on delete cascade,
+    author_user_id uuid not null references users(id),
+    parent_comment_id uuid references ticket_comments(id) on delete cascade,
+    body text not null,
+    mark_type text,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    check (mark_type is null or mark_type in ('ticket', 'sandwatch'))
+);
+
+create table if not exists comment_mentions (
+    id bigserial primary key,
+    comment_id uuid not null references ticket_comments(id) on delete cascade,
+    mentioned_user_id uuid not null references users(id) on delete cascade,
+    created_at timestamptz not null default now(),
+    unique (comment_id, mentioned_user_id)
+);
+
+create table if not exists notifications (
+    id bigserial primary key,
+    user_id uuid not null references users(id) on delete cascade,
+    ticket_id uuid not null references tickets(id) on delete cascade,
+    comment_id uuid references ticket_comments(id) on delete cascade,
+    kind text not null default 'comment',
+    payload jsonb not null default '{}'::jsonb,
+    is_read boolean not null default false,
+    read_at timestamptz,
+    created_at timestamptz not null default now()
+);
+
 create index if not exists idx_tickets_urgency on tickets (urgency desc);
 create index if not exists idx_tickets_status on tickets (status);
 create index if not exists idx_tickets_owner on tickets (owner_user_id);
 create index if not exists idx_tickets_category on tickets (category_id);
 create index if not exists idx_tickets_created_at on tickets (created_at desc);
+create index if not exists idx_ticket_comments_ticket on ticket_comments (ticket_id, created_at);
+create index if not exists idx_ticket_comments_parent on ticket_comments (parent_comment_id);
+create index if not exists idx_notifications_user on notifications (user_id, is_read, created_at desc);
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Migration v2: in_progress status + solver tracking

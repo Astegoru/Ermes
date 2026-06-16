@@ -86,6 +86,10 @@ def create_app() -> Flask:
     def admin_panel_view():
         return render_template("admin_panel.html")
 
+    @app.get("/admin/users")
+    def admin_users_view():
+        return render_template("admin_users.html")
+
     return app
 
 

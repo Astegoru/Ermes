@@ -1,15 +1,33 @@
+import re
+from datetime import datetime, timezone
+
 from flask import Blueprint, current_app, g, jsonify, request
 
 from backend.auth.middleware import auth_required
+from backend.admin.service import (
+    VALID_ROLES,
+    can_access_ticket_list,
+    can_solve_ticket,
+    is_superuser,
+)
 from backend.tickets.service import (
     AuthorizationError,
     enforce_open_or_superuser,
     enforce_owner_open_or_superuser,
     enforce_owner_or_superuser,
 )
-from backend.admin.service import is_superuser
-
 bp = Blueprint("tickets", __name__, url_prefix="/api/tickets")
+
+MENTION_PATTERN = re.compile(r"@([A-Za-z0-9_.-]{2,64})")
+VALID_COMMENT_MARKS = {"ticket", "sandwatch"}
+
+
+def _extract_mentions(text: str) -> list[str]:
+    return sorted({m.group(1) for m in MENTION_PATTERN.finditer(text or "")})
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 @bp.post("")
@@ -59,6 +77,9 @@ def list_tickets():
             status = parsed_statuses[0]
 
     repo = current_app.extensions["repo"]
+    if not can_access_ticket_list(repo, g.current_user["id"]):
+        return jsonify({"error": "Only Moneda or Solver users can view the ticket list"}), 403
+
     tickets = repo.list_tickets(
         sort_field=sort,
         sort_desc=order.lower() != "asc",
@@ -108,6 +129,11 @@ def list_deleted_tickets():
 def get_ticket(ticket_id: str):
     repo = current_app.extensions["repo"]
     ticket = repo.get_ticket(ticket_id)
+
+    if not can_access_ticket_list(repo, g.current_user["id"]):
+        # Outsider users can only access their own tickets.
+        if ticket.get("owner_user_id") != g.current_user["id"]:
+            return jsonify({"error": "Forbidden"}), 403
 
     try:
         owner = repo.get_user_by_id(ticket["owner_user_id"])
@@ -176,6 +202,9 @@ def solve_ticket(ticket_id: str):
     repo = current_app.extensions["repo"]
     ticket = repo.get_ticket(ticket_id)
 
+    if not can_solve_ticket(repo, g.current_user["id"]):
+        return jsonify({"error": "Only Moneda users can mark a ticket as solved"}), 403
+
     try:
         enforce_open_or_superuser(repo, ticket, g.current_user["id"])
     except AuthorizationError as exc:
@@ -183,6 +212,221 @@ def solve_ticket(ticket_id: str):
 
     solved = repo.solve_ticket(ticket_id=ticket_id, actor_user_id=g.current_user["id"])
     return jsonify(solved), 200
+
+
+@bp.post("/<ticket_id>/propose-solved")
+@auth_required()
+def propose_ticket_solved(ticket_id: str):
+    repo = current_app.extensions["repo"]
+    ticket = repo.get_ticket(ticket_id)
+
+    role = repo.get_user_role(g.current_user["id"])
+    if role not in VALID_ROLES:
+        role = "outsider"
+
+    if role not in {"solver", "moneda"}:
+        return jsonify({"error": "Only Solver or Moneda users can propose solved"}), 403
+
+    try:
+        enforce_open_or_superuser(repo, ticket, g.current_user["id"])
+    except AuthorizationError as exc:
+        return jsonify({"error": str(exc)}), 403
+
+    repo.create_event(
+        ticket_id=ticket_id,
+        actor_user_id=g.current_user["id"],
+        event_type="solve_proposed",
+        metadata={"status": ticket.get("status")},
+    )
+    return jsonify({"ok": True}), 200
+
+
+@bp.get("/<ticket_id>/comments")
+@auth_required()
+def list_ticket_comments(ticket_id: str):
+    repo = current_app.extensions["repo"]
+    ticket = repo.get_ticket(ticket_id)
+
+    if not can_access_ticket_list(repo, g.current_user["id"]):
+        if ticket.get("owner_user_id") != g.current_user["id"]:
+            return jsonify({"error": "Forbidden"}), 403
+
+    comments = repo.list_ticket_comments(ticket_id)
+    if not comments:
+        return jsonify([]), 200
+
+    comment_ids = [item["id"] for item in comments]
+    author_ids = sorted({item.get("author_user_id") for item in comments if item.get("author_user_id")})
+    users = repo.get_users_by_ids(author_ids)
+    user_map = {u["id"]: u.get("external_username", "") for u in users}
+
+    mentions = repo.list_comment_mentions(comment_ids)
+    mention_map: dict[str, list[str]] = {}
+    mention_user_ids = sorted({item["mentioned_user_id"] for item in mentions if item.get("mentioned_user_id")})
+    mention_users = repo.get_users_by_ids(mention_user_ids)
+    mention_user_map = {u["id"]: u.get("external_username", "") for u in mention_users}
+    for mention in mentions:
+        comment_id = mention.get("comment_id")
+        mentioned_user_id = mention.get("mentioned_user_id")
+        if not comment_id or not mentioned_user_id:
+            continue
+        mention_map.setdefault(comment_id, []).append(mention_user_map.get(mentioned_user_id, ""))
+
+    for comment in comments:
+        comment["author_username"] = user_map.get(comment.get("author_user_id"), "")
+        comment["mentions"] = [item for item in mention_map.get(comment["id"], []) if item]
+
+    return jsonify(comments), 200
+
+
+@bp.post("/<ticket_id>/comments")
+@auth_required()
+def create_ticket_comment(ticket_id: str):
+    payload = request.get_json(silent=True) or {}
+    body = (payload.get("body") or "").strip()
+    parent_comment_id = payload.get("parent_comment_id")
+    mark_type = (payload.get("mark_type") or "").strip().lower() or None
+
+    if not body:
+        return jsonify({"error": "Comment body is required"}), 400
+    if mark_type and mark_type not in VALID_COMMENT_MARKS:
+        return jsonify({"error": "mark_type must be one of: ticket, sandwatch"}), 400
+
+    repo = current_app.extensions["repo"]
+    ticket = repo.get_ticket(ticket_id)
+
+    if not can_access_ticket_list(repo, g.current_user["id"]):
+        if ticket.get("owner_user_id") != g.current_user["id"]:
+            return jsonify({"error": "Forbidden"}), 403
+
+    if parent_comment_id:
+        parent = repo.get_ticket_comment(parent_comment_id)
+        if parent.get("ticket_id") != ticket_id:
+            return jsonify({"error": "Reply comment must belong to the same ticket"}), 400
+
+    created = repo.create_ticket_comment(
+        {
+            "ticket_id": ticket_id,
+            "author_user_id": g.current_user["id"],
+            "parent_comment_id": parent_comment_id,
+            "body": body,
+            "mark_type": mark_type,
+        }
+    )
+
+    mentioned_usernames = _extract_mentions(body)
+    mentioned_users = repo.get_users_by_external_usernames(mentioned_usernames)
+    mentioned_user_ids = [u["id"] for u in mentioned_users]
+    repo.create_comment_mentions(created["id"], mentioned_user_ids)
+
+    recipients = set()
+
+    if ticket.get("solved_by_user_id"):
+        recipients.add(ticket["solved_by_user_id"])
+
+    if parent_comment_id:
+        parent = repo.get_ticket_comment(parent_comment_id)
+        if parent.get("author_user_id"):
+            recipients.add(parent["author_user_id"])
+
+    for user_id in mentioned_user_ids:
+        recipients.add(user_id)
+
+    recipients.discard(g.current_user["id"])
+
+    notification_rows = [
+        {
+            "user_id": user_id,
+            "ticket_id": ticket_id,
+            "comment_id": created["id"],
+            "kind": "comment",
+            "payload": {
+                "parent_comment_id": parent_comment_id,
+                "mark_type": mark_type,
+                "from_user_id": g.current_user["id"],
+            },
+            "is_read": False,
+            "read_at": None,
+            "created_at": _now_iso(),
+        }
+        for user_id in sorted(recipients)
+    ]
+
+    if notification_rows:
+        repo.create_notifications(notification_rows)
+
+    repo.create_event(
+        ticket_id=ticket_id,
+        actor_user_id=g.current_user["id"],
+        event_type="commented",
+        metadata={
+            "comment_id": created["id"],
+            "parent_comment_id": parent_comment_id,
+            "mentions": [u.get("external_username") for u in mentioned_users],
+            "mark_type": mark_type,
+        },
+    )
+
+    created["mentions"] = [u.get("external_username") for u in mentioned_users]
+    created["author_username"] = g.current_user.get("external_username", "")
+    return jsonify(created), 201
+
+
+@bp.patch("/<ticket_id>/comments/<comment_id>")
+@auth_required()
+def edit_ticket_comment(ticket_id: str, comment_id: str):
+    payload = request.get_json(silent=True) or {}
+    body = (payload.get("body") or "").strip()
+    mark_type = (payload.get("mark_type") or "").strip().lower() or None
+
+    if not body:
+        return jsonify({"error": "Comment body is required"}), 400
+    if mark_type and mark_type not in VALID_COMMENT_MARKS:
+        return jsonify({"error": "mark_type must be one of: ticket, sandwatch"}), 400
+
+    repo = current_app.extensions["repo"]
+    comment = repo.get_ticket_comment(comment_id)
+
+    if comment.get("ticket_id") != ticket_id:
+        return jsonify({"error": "Comment does not belong to this ticket"}), 400
+
+    if comment.get("author_user_id") != g.current_user["id"]:
+        return jsonify({"error": "Only the comment author can edit this comment"}), 403
+
+    updated = repo.update_ticket_comment(
+        comment_id=comment_id,
+        updates={
+            "body": body,
+            "mark_type": mark_type,
+            "updated_at": _now_iso(),
+        },
+    )
+
+    mentioned_usernames = _extract_mentions(body)
+    mentioned_users = repo.get_users_by_external_usernames(mentioned_usernames)
+    mentioned_user_ids = [u["id"] for u in mentioned_users]
+    repo.delete_comment_mentions(comment_id)
+    repo.create_comment_mentions(comment_id, mentioned_user_ids)
+
+    updated["mentions"] = [u.get("external_username") for u in mentioned_users]
+    updated["author_username"] = g.current_user.get("external_username", "")
+    return jsonify(updated), 200
+
+
+@bp.delete("/<ticket_id>/comments/<comment_id>")
+@auth_required()
+def delete_ticket_comment(ticket_id: str, comment_id: str):
+    repo = current_app.extensions["repo"]
+    comment = repo.get_ticket_comment(comment_id)
+
+    if comment.get("ticket_id") != ticket_id:
+        return jsonify({"error": "Comment does not belong to this ticket"}), 400
+
+    if comment.get("author_user_id") != g.current_user["id"]:
+        return jsonify({"error": "Only the comment author can delete this comment"}), 403
+
+    repo.delete_ticket_comment(comment_id)
+    return jsonify({"ok": True}), 200
 
 
 @bp.delete("/<ticket_id>")

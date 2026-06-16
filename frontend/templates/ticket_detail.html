@@ -121,6 +121,200 @@
       font-family: "Space Grotesk", sans-serif;
     }
 
+    .comments-wrap {
+      margin-top: 1rem;
+    }
+
+    .comment-form textarea {
+      min-height: 90px;
+    }
+
+    .comment-form .form-label {
+      font-weight: 700;
+    }
+
+    .comment-form-footer {
+      display: flex;
+      align-items: flex-end;
+      justify-content: flex-end;
+      gap: 0.6rem;
+    }
+
+    .comment-list {
+      display: grid;
+      gap: 0.65rem;
+    }
+
+    .comment-item {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: 0.8rem;
+      padding: 0.7rem 0.7rem 2.1rem;
+      background: #fff;
+    }
+
+    .comment-item.reply {
+      margin-left: 1.2rem;
+      border-left: 3px solid var(--accent);
+    }
+
+    .comment-meta {
+      display: flex;
+      gap: 0.55rem;
+      flex-wrap: wrap;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 0.35rem;
+    }
+
+    .comment-mark {
+      position: absolute;
+      right: 0.62rem;
+      bottom: 0.55rem;
+      width: 1.6rem;
+      height: 1.6rem;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: "Space Grotesk", sans-serif;
+      font-size: 0.7rem;
+      font-weight: 800;
+      box-shadow: 0 6px 14px rgba(38, 31, 16, 0.2);
+      color: #fff;
+      text-transform: uppercase;
+    }
+
+    .comment-mark.ticket {
+      background: linear-gradient(140deg, #3288ff, #1f5ed6);
+    }
+
+    .comment-mark.sandwatch {
+      background: linear-gradient(140deg, #ff8a3d, #d35b15);
+    }
+
+    .mark-picker {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.3rem 0.4rem;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+    }
+
+    .mark-picker-label {
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: var(--muted);
+      margin-right: 0.15rem;
+    }
+
+    .mark-option {
+      border: 1px solid var(--line);
+      background: #fff;
+      width: 1.9rem;
+      height: 1.9rem;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-family: "Space Grotesk", sans-serif;
+      font-size: 0.68rem;
+      font-weight: 800;
+      color: #7d7467;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+
+    .mark-option:hover {
+      transform: translateY(-1px);
+      border-color: #b4aa9b;
+    }
+
+    .mark-option.active {
+      color: #fff;
+      border-color: transparent;
+      box-shadow: 0 6px 12px rgba(35, 30, 21, 0.2);
+    }
+
+    .mark-option[data-mark-value="ticket"].active {
+      background: linear-gradient(140deg, #3288ff, #1f5ed6);
+    }
+
+    .mark-option[data-mark-value="sandwatch"].active {
+      background: linear-gradient(140deg, #ff8a3d, #d35b15);
+    }
+
+    .comment-actions {
+      margin-top: 0.45rem;
+      display: flex;
+      gap: 0.45rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .comment-menu {
+      margin-left: auto;
+      position: relative;
+    }
+
+    .comment-menu-toggle {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      width: 1.9rem;
+      height: 1.9rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #857c70;
+      cursor: pointer;
+      font-size: 1.05rem;
+      line-height: 1;
+      list-style: none;
+    }
+
+    .comment-menu-toggle::-webkit-details-marker {
+      display: none;
+    }
+
+    .comment-menu-panel {
+      position: absolute;
+      top: 2.15rem;
+      right: 0;
+      min-width: 8rem;
+      border: 1px solid var(--line);
+      border-radius: 0.65rem;
+      box-shadow: 0 10px 20px rgba(29, 24, 17, 0.14);
+      background: #fff;
+      padding: 0.35rem;
+      display: grid;
+      gap: 0.3rem;
+      z-index: 4;
+    }
+
+    .reply-form,
+    .edit-form {
+      margin-top: 0.55rem;
+      display: grid;
+      gap: 0.45rem;
+    }
+
+    .reply-form textarea,
+    .edit-form textarea {
+      min-height: 76px;
+      resize: vertical;
+    }
+
+    .reply-form-footer,
+    .edit-form-footer {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: flex-end;
+      align-items: center;
+    }
+
     @media (max-width: 767.98px) {
       .ticket-title { font-size: 1.15rem; }
     }
@@ -173,6 +367,33 @@
       <div class="actions" id="action-row"></div>
     </section>
 
+    <section class="surface-card comments-wrap" id="comments-mode">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h2 class="ticket-title" style="font-size: 1.05rem;">Comments</h2>
+        <span class="text-muted" style="font-size: 0.82rem;" id="comments-count">0 comments</span>
+      </div>
+
+      <form id="comment-form" class="comment-form row g-2 mb-3">
+        <div class="col-12">
+          <label class="form-label" for="comment-body">Write a comment</label>
+          <textarea class="form-control" id="comment-body" placeholder="Use @username to mention users" required></textarea>
+        </div>
+        <div class="col-12">
+          <div class="comment-form-footer">
+            <div class="mark-picker" data-mark-picker>
+              <input id="comment-mark-type" type="hidden" value="">
+              <span class="mark-picker-label">Mark</span>
+              <button class="mark-option" type="button" data-mark-value="ticket" aria-label="Mark as ticket">TK</button>
+              <button class="mark-option" type="button" data-mark-value="sandwatch" aria-label="Mark as sandwatch">SW</button>
+            </div>
+            <button class="btn btn-primary" type="submit">Post comment</button>
+          </div>
+        </div>
+      </form>
+
+      <div class="comment-list" id="comment-list"></div>
+    </section>
+
     <!-- Edit mode (owner only) -->
     <section class="surface-card d-none" id="edit-mode">
       <form id="edit-form" class="row g-3">
@@ -222,9 +443,35 @@
 
     let currentTicket = null;
     let currentUser = null;
+    let commentsCache = [];
+    let activeReplyCommentId = null;
+    let activeEditCommentId = null;
 
     function setError(message) {
       errorNode.textContent = message || "";
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function formatDate(value) {
+      if (!value) {
+        return "";
+      }
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? "" : date.toLocaleString();
+    }
+
+    function renderCommentBody(text) {
+      return escapeHtml(text)
+        .replace(/@([A-Za-z0-9_.-]{2,64})/g, "<strong>@$1</strong>")
+        .replace(/\n/g, "<br>");
     }
 
     function showBlock(id, show) {
@@ -314,6 +561,8 @@
 
       const isOwner = currentUser && ticket.owner_user_id === currentUser.id;
       const isActive = ticket.status === "open" || ticket.status === "in_progress";
+      const isMoneda = currentUser && currentUser.role === "moneda";
+      const isSolver = currentUser && currentUser.role === "solver";
 
       if (isOwner && isActive) {
         const editBtn = document.createElement("button");
@@ -331,12 +580,20 @@
         row.appendChild(progressBtn);
       }
 
-      if (isActive) {
+      if (isActive && isMoneda) {
         const solveBtn = document.createElement("button");
         solveBtn.className = "btn btn-success";
         solveBtn.textContent = "Solve";
         solveBtn.addEventListener("click", openSolveModal);
         row.appendChild(solveBtn);
+      }
+
+      if (isActive && isSolver) {
+        const proposeBtn = document.createElement("button");
+        proposeBtn.className = "btn btn-outline-success";
+        proposeBtn.textContent = "Propose Solved";
+        proposeBtn.addEventListener("click", proposeSolved);
+        row.appendChild(proposeBtn);
       }
 
       if (isOwner && isActive) {
@@ -383,6 +640,7 @@
 
       const ticket = await response.json();
       renderView(ticket);
+      await loadComments();
     }
 
     async function loadCurrentUser() {
@@ -439,6 +697,312 @@
       loadDetail();
     }
 
+    async function proposeSolved() {
+      setError("");
+
+      const response = await fetch(`/api/tickets/${ticketId}/propose-solved`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+
+      if (redirectIfUnauthorized(response)) {
+        return;
+      }
+
+      if (!response.ok) {
+        const payload = await response.json();
+        setError(payload.error || "Could not propose solved");
+        return;
+      }
+
+      setError("Solve proposal submitted.");
+    }
+
+    function applyMarkValue(markPicker, markValue) {
+      const input = markPicker.querySelector("input[type='hidden']");
+      if (!input) {
+        return;
+      }
+      const nextValue = input.value === markValue ? "" : markValue;
+      input.value = nextValue;
+      markPicker.querySelectorAll(".mark-option").forEach((node) => {
+        node.classList.toggle("active", node.getAttribute("data-mark-value") === nextValue);
+      });
+    }
+
+    function resetMarkPicker(markPicker) {
+      const input = markPicker.querySelector("input[type='hidden']");
+      if (input) {
+        input.value = "";
+      }
+      markPicker.querySelectorAll(".mark-option").forEach((node) => node.classList.remove("active"));
+    }
+
+    function markLogoHtml(markType) {
+      if (!markType) {
+        return "";
+      }
+      const label = markType === "ticket" ? "TK" : "SW";
+      return `<span class="comment-mark ${escapeHtml(markType)}" title="${escapeHtml(markType)}">${label}</span>`;
+    }
+
+    function markPickerHtml(markValue, inputName) {
+      return `
+        <div class="mark-picker" data-mark-picker>
+          <input type="hidden" name="${escapeHtml(inputName)}" value="${escapeHtml(markValue || "")}">
+          <span class="mark-picker-label">Mark</span>
+          <button class="mark-option ${markValue === "ticket" ? "active" : ""}" type="button" data-mark-value="ticket" aria-label="Mark as ticket">TK</button>
+          <button class="mark-option ${markValue === "sandwatch" ? "active" : ""}" type="button" data-mark-value="sandwatch" aria-label="Mark as sandwatch">SW</button>
+        </div>
+      `;
+    }
+
+    function buildCommentsTree(comments) {
+      const byParent = new Map();
+      comments.forEach((comment) => {
+        const key = comment.parent_comment_id || "root";
+        if (!byParent.has(key)) {
+          byParent.set(key, []);
+        }
+        byParent.get(key).push(comment);
+      });
+      return byParent;
+    }
+
+    function renderCommentNode(comment, byParent, level = 0) {
+      const children = byParent.get(comment.id) || [];
+      const mentions = Array.isArray(comment.mentions) && comment.mentions.length
+        ? `Mentions: ${comment.mentions.map((item) => `@${item}`).join(", ")}`
+        : "";
+      const isOwner = Boolean(currentUser && comment.author_user_id === currentUser.id);
+      const markHtml = markLogoHtml(comment.mark_type);
+      const replyFormHtml = activeReplyCommentId === comment.id
+        ? `
+          <form class="reply-form" data-reply-form="${escapeHtml(comment.id)}">
+            <textarea class="form-control" name="body" placeholder="Write your reply" required></textarea>
+            <div class="reply-form-footer">
+              ${markPickerHtml("", "mark_type")}
+              <button class="btn btn-sm btn-primary" type="submit">Post reply</button>
+            </div>
+          </form>
+        `
+        : "";
+      const editFormHtml = activeEditCommentId === comment.id
+        ? `
+          <form class="edit-form" data-edit-form="${escapeHtml(comment.id)}">
+            <textarea class="form-control" name="body" required>${escapeHtml(comment.body || "")}</textarea>
+            <div class="edit-form-footer">
+              ${markPickerHtml(comment.mark_type || "", "mark_type")}
+              <button class="btn btn-sm btn-primary" type="submit">Save</button>
+            </div>
+          </form>
+        `
+        : "";
+      const ownMenuHtml = isOwner
+        ? `
+          <details class="comment-menu">
+            <summary class="comment-menu-toggle" aria-label="Comment actions">&#8942;</summary>
+            <div class="comment-menu-panel">
+              <button class="btn btn-sm btn-outline-secondary" type="button" data-comment-edit="${escapeHtml(comment.id)}">Edit</button>
+              <button class="btn btn-sm btn-outline-danger" type="button" data-comment-delete="${escapeHtml(comment.id)}">Delete</button>
+            </div>
+          </details>
+        `
+        : "";
+
+      let html = `
+        <article class="comment-item ${level > 0 ? "reply" : ""}">
+          <div class="comment-meta">
+            <span>${escapeHtml(comment.author_username || comment.author_user_id || "unknown")}</span>
+            <span>${escapeHtml(formatDate(comment.created_at))}</span>
+          </div>
+          <div>${renderCommentBody(comment.body || "")}</div>
+          ${mentions ? `<div class="small text-muted mt-1">${escapeHtml(mentions)}</div>` : ""}
+          <div class="comment-actions">
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-reply-to="${escapeHtml(comment.id)}">Reply</button>
+            ${ownMenuHtml}
+          </div>
+          ${editFormHtml}
+          ${replyFormHtml}
+          ${markHtml}
+        </article>
+      `;
+
+      children.forEach((child) => {
+        html += renderCommentNode(child, byParent, level + 1);
+      });
+      return html;
+    }
+
+    function renderComments(comments) {
+      const listNode = document.getElementById("comment-list");
+      const countNode = document.getElementById("comments-count");
+      countNode.textContent = `${comments.length} comment${comments.length === 1 ? "" : "s"}`;
+      commentsCache = comments;
+
+      if (!comments.length) {
+        listNode.innerHTML = "";
+        listNode.classList.add("d-none");
+        countNode.classList.add("d-none");
+        return;
+      }
+
+      listNode.classList.remove("d-none");
+      countNode.classList.remove("d-none");
+
+      const byParent = buildCommentsTree(comments);
+      const roots = byParent.get("root") || [];
+      listNode.innerHTML = roots.map((item) => renderCommentNode(item, byParent)).join("");
+    }
+
+    async function loadComments() {
+      const response = await fetch(`/api/tickets/${ticketId}/comments`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+
+      if (redirectIfUnauthorized(response)) {
+        return;
+      }
+
+      if (!response.ok) {
+        setError("Could not load comments");
+        return;
+      }
+
+      const comments = await response.json();
+      activeReplyCommentId = null;
+      activeEditCommentId = null;
+      renderComments(comments);
+    }
+
+    async function submitComment(event) {
+      event.preventDefault();
+      setError("");
+
+      const body = document.getElementById("comment-body").value.trim();
+      const markType = document.getElementById("comment-mark-type").value || null;
+
+      if (!body) {
+        setError("Comment body is required");
+        return;
+      }
+
+      const response = await fetch(`/api/tickets/${ticketId}/comments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          body,
+          mark_type: markType,
+          parent_comment_id: null,
+        })
+      });
+
+      if (redirectIfUnauthorized(response)) {
+        return;
+      }
+
+      if (!response.ok) {
+        const payload = await response.json();
+        setError(payload.error || "Could not post comment");
+        return;
+      }
+
+      document.getElementById("comment-body").value = "";
+      resetMarkPicker(document.querySelector("#comment-form [data-mark-picker]"));
+      await loadComments();
+    }
+
+    async function submitReply(commentId, formNode) {
+      const body = (formNode.querySelector("textarea[name='body']")?.value || "").trim();
+      const markType = formNode.querySelector("input[name='mark_type']")?.value || null;
+
+      if (!body) {
+        setError("Reply body is required");
+        return;
+      }
+
+      const response = await fetch(`/api/tickets/${ticketId}/comments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          body,
+          mark_type: markType,
+          parent_comment_id: commentId,
+        })
+      });
+
+      if (redirectIfUnauthorized(response)) {
+        return;
+      }
+
+      if (!response.ok) {
+        const payload = await response.json();
+        setError(payload.error || "Could not post reply");
+        return;
+      }
+
+      await loadComments();
+    }
+
+    async function submitCommentEdit(commentId, formNode) {
+      const body = (formNode.querySelector("textarea[name='body']")?.value || "").trim();
+      const markType = formNode.querySelector("input[name='mark_type']")?.value || null;
+
+      if (!body) {
+        setError("Comment body is required");
+        return;
+      }
+
+      const response = await fetch(`/api/tickets/${ticketId}/comments/${commentId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          body,
+          mark_type: markType,
+        })
+      });
+
+      if (redirectIfUnauthorized(response)) {
+        return;
+      }
+
+      if (!response.ok) {
+        const payload = await response.json();
+        setError(payload.error || "Could not update comment");
+        return;
+      }
+
+      await loadComments();
+    }
+
+    async function removeComment(commentId) {
+      const response = await fetch(`/api/tickets/${ticketId}/comments/${commentId}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+
+      if (redirectIfUnauthorized(response)) {
+        return;
+      }
+
+      if (!response.ok) {
+        const payload = await response.json();
+        setError(payload.error || "Could not delete comment");
+        return;
+      }
+
+      await loadComments();
+    }
+
     async function deleteSoft() {
       setError("");
 
@@ -465,6 +1029,61 @@
     });
 
     document.getElementById("cancel-edit").addEventListener("click", exitEditMode);
+    document.getElementById("comment-form").addEventListener("submit", submitComment);
+
+    document.addEventListener("click", async (event) => {
+      const markButton = event.target.closest(".mark-option");
+      if (markButton) {
+        const markPicker = markButton.closest("[data-mark-picker]");
+        if (markPicker) {
+          applyMarkValue(markPicker, markButton.getAttribute("data-mark-value"));
+        }
+        return;
+      }
+
+      const replyButton = event.target.closest("[data-reply-to]");
+      if (replyButton) {
+        const commentId = replyButton.getAttribute("data-reply-to");
+        activeReplyCommentId = activeReplyCommentId === commentId ? null : commentId;
+        activeEditCommentId = null;
+        renderComments(commentsCache);
+        return;
+      }
+
+      const editButton = event.target.closest("[data-comment-edit]");
+      if (editButton) {
+        const commentId = editButton.getAttribute("data-comment-edit");
+        activeEditCommentId = activeEditCommentId === commentId ? null : commentId;
+        activeReplyCommentId = null;
+        renderComments(commentsCache);
+        return;
+      }
+
+      const deleteButton = event.target.closest("[data-comment-delete]");
+      if (deleteButton) {
+        const commentId = deleteButton.getAttribute("data-comment-delete");
+        if (window.confirm("Delete this comment?")) {
+          await removeComment(commentId);
+        }
+      }
+    });
+
+    document.getElementById("comment-list").addEventListener("submit", async (event) => {
+      const replyForm = event.target.closest("[data-reply-form]");
+      if (replyForm) {
+        event.preventDefault();
+        setError("");
+        await submitReply(replyForm.getAttribute("data-reply-form"), replyForm);
+        return;
+      }
+
+      const editForm = event.target.closest("[data-edit-form]");
+      if (editForm) {
+        event.preventDefault();
+        setError("");
+        await submitCommentEdit(editForm.getAttribute("data-edit-form"), editForm);
+      }
+    });
 
     document.getElementById("edit-form").addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -509,6 +1128,8 @@
         closeSolveModal();
       }
     });
+
+    resetMarkPicker(document.querySelector("#comment-form [data-mark-picker]"));
 
     attachLogout("logout-btn");
 

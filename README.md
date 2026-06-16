@@ -11,6 +11,61 @@
 python run.py
 ```
 
+`run.py` is for local development only.
+
+## Deploy On Vercel
+
+This project is now configured for Vercel using:
+
+- `api/index.py` as the Python serverless entrypoint.
+- `vercel.json` to route all requests through the Flask app.
+
+### 1) Required environment variables in Vercel
+
+Copy the same values used in `.env` (or `.env.example`) into your Vercel Project Settings > Environment Variables:
+
+- `APP_ENV`
+- `DEBUG`
+- `FLASK_SECRET_KEY`
+- `JWT_SECRET`
+- `JWT_ACCESS_MINUTES`
+- `JWT_REFRESH_DAYS`
+- `FACTS_TOKEN_URL`
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_STORAGE_BUCKET`
+- `MAX_UPLOAD_SIZE_MB`
+- `ALLOWED_UPLOAD_MIME_TYPES`
+- `ALLOWED_UPLOAD_EXTENSIONS`
+- `ADMIN_USERNAME`
+- `ADMIN_PASSWORD`
+
+Important:
+
+- Keep `FACTS_TOKEN_URL` pointing to your FACTS token endpoint so login verification keeps working.
+- Use a stable `FLASK_SECRET_KEY` in Vercel. Changing it invalidates existing signed sessions.
+
+### 2) Deploy
+
+From Vercel dashboard:
+
+1. Import this repository.
+2. Keep Root Directory as project root.
+3. Add the environment variables above.
+4. Deploy.
+
+Or with Vercel CLI:
+
+```bash
+vercel
+```
+
+### 3) Behavior notes on Vercel
+
+- `run.py` is not used by Vercel runtime.
+- Flask routes, templates and `/static/*` assets are served through the serverless Python function.
+- FACTS validation flow remains unchanged.
+
 ## Auth Model
 
 - FACTS is used only at login credential verification.

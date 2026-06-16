@@ -1,6 +1,6 @@
 from flask import Blueprint, current_app, jsonify, request, session
 
-from backend.admin.service import validate_admin_credentials
+from backend.admin.service import VALID_ROLES, validate_admin_credentials
 
 bp = Blueprint("admin", __name__, url_prefix="/api/admin")
 
@@ -45,3 +45,42 @@ def get_superuser():
     repo = current_app.extensions["repo"]
     row = repo.get_superuser()
     return jsonify(row or {"key": "superuser_id", "value": None}), 200
+
+
+@bp.get("/users")
+def list_users():
+    if not _admin_required():
+        return jsonify({"error": "Forbidden"}), 403
+
+    repo = current_app.extensions["repo"]
+    users = repo.list_users()
+    user_ids = [item["id"] for item in users]
+    profiles = repo.list_user_profiles(user_ids)
+    profile_map = {item["user_id"]: item for item in profiles}
+
+    for user in users:
+        profile = profile_map.get(user["id"], {})
+        user["role"] = profile.get("role", "outsider")
+        user["profiled_by"] = profile.get("profiled_by")
+        user["profile_updated_at"] = profile.get("updated_at")
+
+    return jsonify(users), 200
+
+
+@bp.post("/users/<user_id>/profile")
+def profile_user(user_id: str):
+    if not _admin_required():
+        return jsonify({"error": "Forbidden"}), 403
+
+    payload = request.get_json(silent=True) or {}
+    role = (payload.get("role") or "").strip().lower()
+    if role not in VALID_ROLES:
+        return jsonify({"error": "role must be one of moneda, solver, outsider"}), 400
+
+    repo = current_app.extensions["repo"]
+    row = repo.upsert_user_profile(
+        user_id=user_id,
+        role=role,
+        profiled_by=payload.get("profiled_by") or "admin",
+    )
+    return jsonify(row), 200
