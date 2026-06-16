@@ -54,6 +54,11 @@ def create_app() -> Flask:
     def health():
         return jsonify({"status": "ok"}), 200
 
+    @app.get("/favicon.ico")
+    def favicon():
+        # Return empty response to avoid noisy browser favicon fetch failures.
+        return "", 204
+
     @app.get("/login")
     def login_view():
         return render_template("login.html")
