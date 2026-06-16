@@ -1,5 +1,6 @@
 from flask import Blueprint, current_app, g, jsonify, request, session
 
+from backend.admin.service import get_user_role
 from backend.auth.middleware import auth_required
 from backend.auth.service import AuthenticationError, decode_token, issue_tokens, login_with_facts
 from backend.db.repositories import RepositoryError
@@ -48,14 +49,36 @@ def refresh():
 def me():
     repo = current_app.extensions["repo"]
     user = repo.get_user_by_id(g.current_user["id"])
+    role = get_user_role(repo, user["id"])
     return jsonify(
         {
             "id": user["id"],
             "external_username": user["external_username"],
             "display_name": user.get("display_name"),
             "is_active": user.get("is_active", True),
+            "role": role,
         }
     )
+
+
+@bp.get("/notifications")
+@auth_required()
+def list_notifications():
+    unread_only = request.args.get("unread_only", "false").lower() == "true"
+    repo = current_app.extensions["repo"]
+    rows = repo.list_notifications(g.current_user["id"], unread_only=unread_only)
+    return jsonify(rows), 200
+
+
+@bp.post("/notifications/<int:notification_id>/read")
+@auth_required()
+def mark_notification_read(notification_id: int):
+    repo = current_app.extensions["repo"]
+    try:
+        row = repo.mark_notification_read(notification_id, g.current_user["id"])
+    except RepositoryError as exc:
+        return jsonify({"error": str(exc)}), 404
+    return jsonify(row), 200
 
 
 @bp.post("/logout")

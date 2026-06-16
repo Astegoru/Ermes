@@ -54,6 +54,60 @@ class Repositories:
         )
         return getattr(response, "data", []) or []
 
+    def get_users_by_external_usernames(self, usernames: list[str]) -> list[dict[str, Any]]:
+        if not usernames:
+            return []
+        response = (
+            self.client.table("users")
+            .select("id, external_username")
+            .in_("external_username", usernames)
+            .execute()
+        )
+        return getattr(response, "data", []) or []
+
+    def list_users(self) -> list[dict[str, Any]]:
+        response = (
+            self.client.table("users")
+            .select("id, external_username, display_name, created_at, last_login_at, is_active")
+            .order("created_at", desc=True)
+            .execute()
+        )
+        return getattr(response, "data", []) or []
+
+    def list_user_profiles(self, user_ids: list[str]) -> list[dict[str, Any]]:
+        if not user_ids:
+            return []
+        response = (
+            self.client.table("user_profiles")
+            .select("user_id, role, profiled_by, updated_at")
+            .in_("user_id", user_ids)
+            .execute()
+        )
+        return getattr(response, "data", []) or []
+
+    def get_user_role(self, user_id: str) -> str:
+        response = (
+            self.client.table("user_profiles")
+            .select("role")
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+        data = getattr(response, "data", []) or []
+        if not data:
+            return "outsider"
+        return (data[0].get("role") or "outsider").lower()
+
+    def upsert_user_profile(self, user_id: str, role: str, profiled_by: str) -> dict[str, Any]:
+        payload = {
+            "user_id": user_id,
+            "role": role.lower(),
+            "profiled_by": profiled_by,
+            "updated_at": self._now_iso(),
+        }
+        response = self.client.table("user_profiles").upsert(payload, on_conflict="user_id").execute()
+        return self._single(response)
+
     def get_user_by_external_username(self, username: str) -> dict[str, Any]:
         response = (
             self.client.table("users")
@@ -241,6 +295,87 @@ class Repositories:
             "created_at": self._now_iso(),
         }
         self.client.table("ticket_events").insert(payload).execute()
+
+    def list_ticket_comments(self, ticket_id: str) -> list[dict[str, Any]]:
+        response = (
+            self.client.table("ticket_comments")
+            .select("*")
+            .eq("ticket_id", ticket_id)
+            .order("created_at", desc=False)
+            .execute()
+        )
+        return getattr(response, "data", []) or []
+
+    def get_ticket_comment(self, comment_id: str) -> dict[str, Any]:
+        response = self.client.table("ticket_comments").select("*").eq("id", comment_id).limit(1).execute()
+        return self._single(response)
+
+    def create_ticket_comment(self, data: dict[str, Any]) -> dict[str, Any]:
+        response = self.client.table("ticket_comments").insert(data).execute()
+        return self._single(response)
+
+    def update_ticket_comment(self, comment_id: str, updates: dict[str, Any]) -> dict[str, Any]:
+        response = self.client.table("ticket_comments").update(updates).eq("id", comment_id).execute()
+        return self._single(response)
+
+    def delete_ticket_comment(self, comment_id: str) -> None:
+        self.client.table("ticket_comments").delete().eq("id", comment_id).execute()
+
+    def delete_comment_mentions(self, comment_id: str) -> None:
+        self.client.table("comment_mentions").delete().eq("comment_id", comment_id).execute()
+
+    def create_comment_mentions(self, comment_id: str, mentioned_user_ids: list[str]) -> list[dict[str, Any]]:
+        if not mentioned_user_ids:
+            return []
+        payload = [
+            {
+                "comment_id": comment_id,
+                "mentioned_user_id": user_id,
+                "created_at": self._now_iso(),
+            }
+            for user_id in sorted(set(mentioned_user_ids))
+        ]
+        response = self.client.table("comment_mentions").insert(payload).execute()
+        return getattr(response, "data", []) or []
+
+    def list_comment_mentions(self, comment_ids: list[str]) -> list[dict[str, Any]]:
+        if not comment_ids:
+            return []
+        response = (
+            self.client.table("comment_mentions")
+            .select("comment_id, mentioned_user_id")
+            .in_("comment_id", comment_ids)
+            .execute()
+        )
+        return getattr(response, "data", []) or []
+
+    def create_notifications(self, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        if not rows:
+            return []
+        response = self.client.table("notifications").insert(rows).execute()
+        return getattr(response, "data", []) or []
+
+    def list_notifications(self, user_id: str, unread_only: bool = False) -> list[dict[str, Any]]:
+        query = (
+            self.client.table("notifications")
+            .select("*")
+            .eq("user_id", user_id)
+            .order("created_at", desc=True)
+        )
+        if unread_only:
+            query = query.eq("is_read", False)
+        response = query.limit(100).execute()
+        return getattr(response, "data", []) or []
+
+    def mark_notification_read(self, notification_id: int, user_id: str) -> dict[str, Any]:
+        response = (
+            self.client.table("notifications")
+            .update({"is_read": True, "read_at": self._now_iso()})
+            .eq("id", notification_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+        return self._single(response)
 
     def get_superuser(self) -> Optional[dict[str, Any]]:
         response = self.client.table("app_meta").select("*").eq("key", "superuser_id").limit(1).execute()

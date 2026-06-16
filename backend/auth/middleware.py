@@ -70,6 +70,10 @@ def register_auth_guards(app) -> None:
         if _is_public_path(path) or path.startswith("/static/"):
             return None
 
+        # Admin session bypasses normal user auth for /admin/* and /api/admin/* paths
+        if session.get("is_admin") and (path.startswith("/admin") or path.startswith("/api/admin")):
+            return None
+
         if path.startswith("/api/") and not g.current_user:
             return jsonify({"error": "Unauthorized"}), 401
 

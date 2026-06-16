@@ -242,6 +242,7 @@
 
     let categories = [];
     let selectedAttachment = null;
+    let currentUser = null;
 
     function setError(message) {
       errorNode.textContent = message || "";
@@ -312,6 +313,20 @@
 
       categories = await response.json();
       renderCategoryChoices(selectedId);
+    }
+
+    async function loadCurrentUser() {
+      const response = await fetch("/api/auth/me", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      currentUser = await response.json();
+      const canCreateCategory = currentUser && currentUser.role === "moneda";
+      document.getElementById("open-create-category").classList.toggle("d-none", !canCreateCategory);
     }
 
     function getSelectedCategoryId() {
@@ -497,6 +512,7 @@
 
     (async () => {
       try {
+        await loadCurrentUser();
         await loadCategories();
       } catch (error) {
         setError(error.message);

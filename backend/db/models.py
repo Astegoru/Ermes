@@ -41,3 +41,44 @@ class Ticket:
     deleted_at: Optional[datetime]
     created_at: datetime
     updated_at: datetime
+
+
+@dataclass
+class UserProfile:
+    user_id: str
+    role: str
+    profiled_by: Optional[str]
+    updated_at: datetime
+
+
+@dataclass
+class TicketComment:
+    id: str
+    ticket_id: str
+    author_user_id: str
+    parent_comment_id: Optional[str]
+    body: str
+    mark_type: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+
+
+@dataclass
+class CommentMention:
+    id: int
+    comment_id: str
+    mentioned_user_id: str
+    created_at: datetime
+
+
+@dataclass
+class Notification:
+    id: int
+    user_id: str
+    ticket_id: str
+    comment_id: Optional[str]
+    kind: str
+    payload: dict
+    is_read: bool
+    read_at: Optional[datetime]
+    created_at: datetime
