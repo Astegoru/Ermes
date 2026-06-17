@@ -74,6 +74,12 @@ def register_auth_guards(app) -> None:
         if session.get("is_admin") and (path.startswith("/admin") or path.startswith("/api/admin")):
             return None
 
+        if path.startswith("/admin"):
+            return redirect("/admin/login?reason=admin_required")
+
+        if path.startswith("/api/admin") and path != "/api/admin/auth/login":
+            return jsonify({"error": "Admin session required"}), 403
+
         if path.startswith("/api/") and not g.current_user:
             return jsonify({"error": "Unauthorized"}), 401
 

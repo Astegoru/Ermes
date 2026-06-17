@@ -1,6 +1,4 @@
-import traceback
-
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, redirect, render_template, session
 from dotenv import load_dotenv
 from supabase import create_client
 
@@ -10,7 +8,7 @@ from backend.auth.routes import bp as auth_bp
 from backend.categories.routes import bp as categories_bp
 from backend.config import load_settings
 from backend.db.repositories import Repositories
-from backend.files_routes import bp as files_bp
+from backend.files.routes import bp as files_bp
 from backend.tickets.routes import bp as tickets_bp
 
 
@@ -24,7 +22,6 @@ def create_app() -> Flask:
     app = Flask(__name__, template_folder="../frontend/templates")
 
     app.config.update(
-        APP_ENV=settings.app_env,
         SECRET_KEY=settings.secret_key,
         JWT_SECRET=settings.jwt_secret,
         JWT_ACCESS_MINUTES=settings.jwt_access_minutes,
@@ -38,42 +35,12 @@ def create_app() -> Flask:
         ADMIN_PASSWORD=settings.admin_password,
     )
 
-    app.extensions["supabase"] = None
-    app.extensions["repo"] = None
-    app.extensions["startup_error"] = None
-    app.extensions["startup_traceback"] = None
-
     if not settings.supabase_url or not settings.supabase_key:
-        app.extensions["startup_error"] = "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY"
-    else:
-        try:
-            supabase_client = create_client(settings.supabase_url, settings.supabase_key)
-            app.extensions["supabase"] = supabase_client
-            app.extensions["repo"] = Repositories(supabase_client)
-        except Exception as exc:
-            app.extensions["startup_error"] = f"Supabase initialization failed: {exc}"
-            app.extensions["startup_traceback"] = traceback.format_exc()
+        raise RuntimeError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required")
 
-    @app.before_request
-    def config_guard():
-        startup_error = app.extensions.get("startup_error")
-        startup_traceback = app.extensions.get("startup_traceback")
-        if not startup_error:
-            return None
-        if request.path in {"/health", "/favicon.ico"}:
-            return None
-        payload = {
-            "error": "Service configuration error",
-            "detail": startup_error,
-            "supabase_url": settings.supabase_url,
-            "supabase_key": settings.supabase_key,
-        }
-        if startup_traceback:
-            payload["traceback"] = startup_traceback
-        return (
-            jsonify(payload),
-            503,
-        )
+    supabase_client = create_client(settings.supabase_url, settings.supabase_key)
+    app.extensions["supabase"] = supabase_client
+    app.extensions["repo"] = Repositories(supabase_client)
 
     register_auth_guards(app)
 
@@ -85,35 +52,7 @@ def create_app() -> Flask:
 
     @app.get("/health")
     def health():
-        startup_error = app.extensions.get("startup_error")
-        startup_traceback = app.extensions.get("startup_traceback")
-        if app.config.get("APP_ENV") != "production":
-            key_value = settings.supabase_key or ""
-            key_prefix = key_value[:12] if key_value else ""
-            diagnostics = {
-                "app_env": settings.app_env,
-                "supabase_url_set": bool(settings.supabase_url),
-                "supabase_key_set": bool(key_value),
-                "supabase_key_prefix": key_prefix,
-                "supabase_key_length": len(key_value),
-                "supabase_url": settings.supabase_url,
-                "supabase_key": key_value,
-            }
-        else:
-            diagnostics = None
-
-        if startup_error:
-            payload = {"status": "degraded", "error": startup_error}
-            if startup_traceback:
-                payload["traceback"] = startup_traceback
-            if diagnostics is not None:
-                payload["diagnostics"] = diagnostics
-            return jsonify(payload), 503
-
-        payload = {"status": "ok"}
-        if diagnostics is not None:
-            payload["diagnostics"] = diagnostics
-        return jsonify(payload), 200
+        return jsonify({"status": "ok"}), 200
 
     @app.get("/favicon.ico")
     def favicon():
@@ -126,6 +65,8 @@ def create_app() -> Flask:
 
     @app.get("/admin/login")
     def admin_login_view():
+        if session.get("is_admin"):
+            return redirect("/admin")
         return render_template("admin_login.html")
 
     @app.get("/")
@@ -150,10 +91,14 @@ def create_app() -> Flask:
 
     @app.get("/admin")
     def admin_panel_view():
+        if not session.get("is_admin"):
+            return redirect("/admin/login?reason=admin_required")
         return render_template("admin_panel.html")
 
     @app.get("/admin/users")
     def admin_users_view():
+        if not session.get("is_admin"):
+            return redirect("/admin/login?reason=admin_required")
         return render_template("admin_users.html")
 
     return app
