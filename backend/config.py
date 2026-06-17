@@ -9,6 +9,13 @@ def _get_bool(name: str, default: bool = False) -> bool:
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _get_str(name: str, default: str = "") -> str:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip()
+
+
 @dataclass(frozen=True)
 class Settings:
     app_env: str
@@ -37,19 +44,19 @@ def load_settings() -> Settings:
     allowed_ext = os.getenv("ALLOWED_UPLOAD_EXTENSIONS", ".jpg,.jpeg,.png,.webp,.pdf,.xls,.xlsx")
 
     return Settings(
-        app_env=os.getenv("APP_ENV", "development"),
-        secret_key=os.getenv("FLASK_SECRET_KEY", "change-me"),
-        jwt_secret=os.getenv("JWT_SECRET", "change-jwt-secret"),
+        app_env=_get_str("APP_ENV", "development"),
+        secret_key=_get_str("FLASK_SECRET_KEY", "change-me"),
+        jwt_secret=_get_str("JWT_SECRET", "change-jwt-secret"),
         jwt_access_minutes=int(os.getenv("JWT_ACCESS_MINUTES", "30")),
         jwt_refresh_days=int(os.getenv("JWT_REFRESH_DAYS", "7")),
-        facts_token_url=os.getenv("FACTS_TOKEN_URL", "https://apimoneda.facts.cl/api/auth/token/"),
-        supabase_url=os.getenv("SUPABASE_URL", ""),
-        supabase_key=os.getenv("SUPABASE_SERVICE_ROLE_KEY", ""),
-        supabase_storage_bucket=os.getenv("SUPABASE_STORAGE_BUCKET", "ticket-files"),
+        facts_token_url=_get_str("FACTS_TOKEN_URL", "https://apimoneda.facts.cl/api/auth/token/"),
+        supabase_url=_get_str("SUPABASE_URL", ""),
+        supabase_key=_get_str("SUPABASE_SERVICE_ROLE_KEY", ""),
+        supabase_storage_bucket=_get_str("SUPABASE_STORAGE_BUCKET", "ticket-files"),
         max_upload_size_mb=int(os.getenv("MAX_UPLOAD_SIZE_MB", "10")),
         allowed_upload_mime_types=tuple(t.strip() for t in allowed_mime.split(",") if t.strip()),
         allowed_upload_extensions=tuple(t.strip().lower() for t in allowed_ext.split(",") if t.strip()),
-        admin_username=os.getenv("ADMIN_USERNAME", "admin"),
-        admin_password=os.getenv("ADMIN_PASSWORD", "change-admin-password"),
+        admin_username=_get_str("ADMIN_USERNAME", "admin"),
+        admin_password=_get_str("ADMIN_PASSWORD", "change-admin-password"),
         debug=_get_bool("DEBUG", default=False),
     )
