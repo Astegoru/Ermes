@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, render_template
+from flask import Flask, jsonify, render_template, request
 from dotenv import load_dotenv
 from supabase import create_client
 
@@ -35,12 +35,36 @@ def create_app() -> Flask:
         ADMIN_PASSWORD=settings.admin_password,
     )
 
-    if not settings.supabase_url or not settings.supabase_key:
-        raise RuntimeError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required")
+    app.extensions["supabase"] = None
+    app.extensions["repo"] = None
+    app.extensions["startup_error"] = None
 
-    supabase_client = create_client(settings.supabase_url, settings.supabase_key)
-    app.extensions["supabase"] = supabase_client
-    app.extensions["repo"] = Repositories(supabase_client)
+    if not settings.supabase_url or not settings.supabase_key:
+        app.extensions["startup_error"] = "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY"
+    else:
+        try:
+            supabase_client = create_client(settings.supabase_url, settings.supabase_key)
+            app.extensions["supabase"] = supabase_client
+            app.extensions["repo"] = Repositories(supabase_client)
+        except Exception as exc:
+            app.extensions["startup_error"] = f"Supabase initialization failed: {exc}"
+
+    @app.before_request
+    def config_guard():
+        startup_error = app.extensions.get("startup_error")
+        if not startup_error:
+            return None
+        if request.path in {"/health", "/favicon.ico"}:
+            return None
+        return (
+            jsonify(
+                {
+                    "error": "Service configuration error",
+                    "detail": startup_error,
+                }
+            ),
+            503,
+        )
 
     register_auth_guards(app)
 
@@ -52,6 +76,9 @@ def create_app() -> Flask:
 
     @app.get("/health")
     def health():
+        startup_error = app.extensions.get("startup_error")
+        if startup_error:
+            return jsonify({"status": "degraded", "error": startup_error}), 503
         return jsonify({"status": "ok"}), 200
 
     @app.get("/favicon.ico")
