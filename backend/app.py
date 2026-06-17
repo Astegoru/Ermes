@@ -22,6 +22,7 @@ def create_app() -> Flask:
     app = Flask(__name__, template_folder="../frontend/templates")
 
     app.config.update(
+        APP_ENV=settings.app_env,
         SECRET_KEY=settings.secret_key,
         JWT_SECRET=settings.jwt_secret,
         JWT_ACCESS_MINUTES=settings.jwt_access_minutes,
@@ -61,6 +62,8 @@ def create_app() -> Flask:
                 {
                     "error": "Service configuration error",
                     "detail": startup_error,
+                    "supabase_url": settings.supabase_url,
+                    "supabase_key": settings.supabase_key,
                 }
             ),
             503,
@@ -77,9 +80,31 @@ def create_app() -> Flask:
     @app.get("/health")
     def health():
         startup_error = app.extensions.get("startup_error")
+        if app.config.get("APP_ENV") != "production":
+            key_value = settings.supabase_key or ""
+            key_prefix = key_value[:12] if key_value else ""
+            diagnostics = {
+                "app_env": settings.app_env,
+                "supabase_url_set": bool(settings.supabase_url),
+                "supabase_key_set": bool(key_value),
+                "supabase_key_prefix": key_prefix,
+                "supabase_key_length": len(key_value),
+                "supabase_url": settings.supabase_url,
+                "supabase_key": key_value,
+            }
+        else:
+            diagnostics = None
+
         if startup_error:
-            return jsonify({"status": "degraded", "error": startup_error}), 503
-        return jsonify({"status": "ok"}), 200
+            payload = {"status": "degraded", "error": startup_error}
+            if diagnostics is not None:
+                payload["diagnostics"] = diagnostics
+            return jsonify(payload), 503
+
+        payload = {"status": "ok"}
+        if diagnostics is not None:
+            payload["diagnostics"] = diagnostics
+        return jsonify(payload), 200
 
     @app.get("/favicon.ico")
     def favicon():
