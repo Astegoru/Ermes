@@ -1,3 +1,5 @@
+import traceback
+
 from flask import Flask, jsonify, render_template, request
 from dotenv import load_dotenv
 from supabase import create_client
@@ -39,6 +41,7 @@ def create_app() -> Flask:
     app.extensions["supabase"] = None
     app.extensions["repo"] = None
     app.extensions["startup_error"] = None
+    app.extensions["startup_traceback"] = None
 
     if not settings.supabase_url or not settings.supabase_key:
         app.extensions["startup_error"] = "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY"
@@ -49,23 +52,26 @@ def create_app() -> Flask:
             app.extensions["repo"] = Repositories(supabase_client)
         except Exception as exc:
             app.extensions["startup_error"] = f"Supabase initialization failed: {exc}"
+            app.extensions["startup_traceback"] = traceback.format_exc()
 
     @app.before_request
     def config_guard():
         startup_error = app.extensions.get("startup_error")
+        startup_traceback = app.extensions.get("startup_traceback")
         if not startup_error:
             return None
         if request.path in {"/health", "/favicon.ico"}:
             return None
+        payload = {
+            "error": "Service configuration error",
+            "detail": startup_error,
+            "supabase_url": settings.supabase_url,
+            "supabase_key": settings.supabase_key,
+        }
+        if startup_traceback:
+            payload["traceback"] = startup_traceback
         return (
-            jsonify(
-                {
-                    "error": "Service configuration error",
-                    "detail": startup_error,
-                    "supabase_url": settings.supabase_url,
-                    "supabase_key": settings.supabase_key,
-                }
-            ),
+            jsonify(payload),
             503,
         )
 
@@ -80,6 +86,7 @@ def create_app() -> Flask:
     @app.get("/health")
     def health():
         startup_error = app.extensions.get("startup_error")
+        startup_traceback = app.extensions.get("startup_traceback")
         if app.config.get("APP_ENV") != "production":
             key_value = settings.supabase_key or ""
             key_prefix = key_value[:12] if key_value else ""
@@ -97,6 +104,8 @@ def create_app() -> Flask:
 
         if startup_error:
             payload = {"status": "degraded", "error": startup_error}
+            if startup_traceback:
+                payload["traceback"] = startup_traceback
             if diagnostics is not None:
                 payload["diagnostics"] = diagnostics
             return jsonify(payload), 503
